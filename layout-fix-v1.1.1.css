@@ -1,0 +1,14 @@
+@media(max-width:820px){
+  .stage-wrap{
+    min-height:590px;
+    transition:min-height .38s cubic-bezier(.22,.8,.3,1), padding .38s ease;
+  }
+  body.preview-compact .stage-wrap{
+    min-height:395px;
+    padding-bottom:8px;
+    overflow:hidden;
+  }
+  body.preview-compact .panel{
+    margin-top:10px;
+  }
+}
