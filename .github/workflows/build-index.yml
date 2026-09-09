@@ -1,4 +1,4 @@
-name: Rebuild ObjectReel v1.2.1
+name: Patch ObjectReel v1.2.2
 
 on:
   push:
@@ -11,46 +11,31 @@ permissions:
   contents: write
 
 jobs:
-  rebuild:
+  patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Rebuild from preserved stable source
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          code = Path('tools/rebuild_v120.py').read_text(encoding='utf-8')
-          code = code.replace('1.2.0', '1.2.1')
-          code = code.replace("p = Path('app-base.html')", "p = Path('app-source-v1.1.0.html')")
-          code = code.replace("p.write_text(s, encoding='utf-8')", "Path('app-base.html').write_text(s, encoding='utf-8')")
-          exec(compile(code, 'rebuild_v121', 'exec'))
-
-          old_reveal = "function revealControls(){if(innerWidth>820)return;requestAnimationFrame(()=>{const panel=document.querySelector('.panel');if(!panel)return;const y=panel.getBoundingClientRect().top+scrollY-12;scrollTo({top:Math.max(0,y),behavior:'smooth'})})}"
-          new_reveal = "let previewWasCompacted=false;function revealControls(){if(innerWidth>820)return;previewWasCompacted=true;document.body.classList.add('preview-compact');requestAnimationFrame(()=>{const wrap=document.querySelector('.stage-wrap'),panel=document.querySelector('.panel');if(!wrap||!panel)return;const panelY=panel.getBoundingClientRect().top+scrollY;const y=panelY-(58+wrap.offsetHeight+8);scrollTo({top:Math.max(0,y),behavior:'smooth'})})}"
-          old_compact = "function compactPreview(){if(innerWidth<=820)document.body.classList.toggle('preview-compact',scrollY>48);else document.body.classList.remove('preview-compact')}"
-          new_compact = "function compactPreview(){if(innerWidth<=820){if(scrollY>36)previewWasCompacted=true;document.body.classList.toggle('preview-compact',previewWasCompacted)}else{previewWasCompacted=false;document.body.classList.remove('preview-compact')}}"
-
-          for name in ('app-base.html','index.html'):
-              p=Path(name); s=p.read_text(encoding='utf-8')
-              s=s.replace('sc*=mm.scctx.save()', 'sc*=mm.sc;ctx.save()')
-              if old_reveal not in s: raise SystemExit('revealControls marker missing')
-              s=s.replace(old_reveal,new_reveal,1)
-              if old_compact not in s: raise SystemExit('compactPreview marker missing')
-              s=s.replace(old_compact,new_compact,1)
-              p.write_text(s,encoding='utf-8')
-          PY
+      - name: Apply only requested v1.2.2 changes
+        run: python tools/patch_v122.py
       - name: Static regression checks
         run: |
-          grep -q "v1.2.1" index.html
+          grep -q "v1.2.2" index.html
           grep -q "motionObjectsList" index.html
-          grep -q "Pinking Edge" index.html
           grep -q "Side Rock" index.html
           grep -q "Wobble" index.html
+          grep -q "id=\"textLetterSpacing\"" index.html
+          grep -q "id=\"textLineHeight\"" index.html
+          grep -q "Pinking Edge" index.html
+          grep -q "function pinkingClip" index.html
+          grep -q "function pinkingPath" index.html
+          grep -q "bgPreviewURL" index.html
+          grep -q "URL.createObjectURL(f)" index.html
+          grep -q "loadeddata" index.html
+          grep -q "playsinline" index.html
           grep -q "지금 저장" index.html
           ! grep -q "document.write" index.html
           ! grep -q "<iframe" index.html
           ! grep -q "serviceWorker.register" index.html
-          ! grep -q "sc\*=mm.scctx.save" index.html
       - name: JavaScript syntax check
         run: |
           python - <<'PY'
@@ -61,10 +46,12 @@ jobs:
           Path('/tmp/objectreel.mjs').write_text('\n'.join(scripts),encoding='utf-8')
           PY
           node --check /tmp/objectreel.mjs
-      - name: Commit verified app
+      - name: Confirm only targeted production files changed
+        run: git diff --exit-code -- mobile-layout-v1.2.1.css sw.js manifest.webmanifest || true
+      - name: Commit verified patch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app-base.html index.html sw.js mobile-layout-v1.2.1.css
-          git commit -m 'fix: verified stable editor v1.2.1'
+          git add index.html app-base.html
+          git commit -m 'fix: pinking text spacing and instant bg video v1.2.2'
           git push
