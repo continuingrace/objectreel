@@ -21,7 +21,6 @@ jobs:
           from pathlib import Path
 
           css = Path('mobile-layout-v1.2.1.css').read_text(encoding='utf-8')
-          old_link = '<link rel="stylesheet" href="./mobile-layout-v1.2.1.css?v=1.2.1">'
           inline = '<style data-mobile-layout="v1.2.3">\n' + css + '\n</style>'
 
           for name in ('index.html','app-base.html'):
@@ -29,11 +28,22 @@ jobs:
               s=p.read_text(encoding='utf-8')
               if 'v1.2.2' not in s or "VERSION='1.2.2'" not in s:
                   raise SystemExit(f'v1.2.2 marker missing in {name}')
-              if old_link not in s:
+
+              candidates = [
+                  '<link rel="stylesheet" href="./mobile-layout-v1.2.2.css?v=1.2.2">',
+                  '<link rel="stylesheet" href="./mobile-layout-v1.2.1.css?v=1.2.1">'
+              ]
+              replaced=False
+              for old_link in candidates:
+                  if old_link in s:
+                      s=s.replace(old_link,inline,1)
+                      replaced=True
+                      break
+              if not replaced:
                   raise SystemExit(f'external mobile css marker missing in {name}')
+
               s=s.replace('v1.2.2','v1.2.3')
               s=s.replace("VERSION='1.2.2'","VERSION='1.2.3'")
-              s=s.replace(old_link,inline,1)
               p.write_text(s,encoding='utf-8')
           PY
       - name: Static regression checks
@@ -47,6 +57,7 @@ jobs:
           grep -q "textLineHeight" index.html
           grep -q "bgPreviewURL" index.html
           grep -q "URL.createObjectURL(f)" index.html
+          ! grep -q "mobile-layout-v1.2.2.css" index.html
           ! grep -q "mobile-layout-v1.2.1.css?v=1.2.1" index.html
           ! grep -q "document.write" index.html
           ! grep -q "<iframe" index.html
