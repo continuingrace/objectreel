@@ -63,20 +63,20 @@ jobs:
           PY
       - name: Regression checks
         run: |
-          grep -q "v1.2.4" index.html
-          grep -q "TEXT_REFERENCE_WIDTH=320" index.html
-          grep -q "applyTextMetrics" index.html
-          grep -q "ResizeObserver" index.html
-          grep -q "exportScale=W/TEXT_REFERENCE_WIDTH" index.html
-          grep -q "startY=centerY-((lines.length-1)*lineStep)/2" index.html
-          grep -q "wrapCanvasText" index.html
-          grep -q "document.fonts?.ready" index.html
-          grep -q "motionObjectsList" index.html
-          grep -q "Pinking Edge" index.html
-          grep -q "bgPreviewURL" index.html
-          grep -q "data-mobile-layout=\"v1.2.4\"" index.html
-          ! grep -q "mobile-layout-v1.2.2.css" index.html
-          ! grep -q "serviceWorker.register" index.html
+          grep -Fq "v1.2.4" index.html
+          grep -Fq "TEXT_REFERENCE_WIDTH=320" index.html
+          grep -Fq "applyTextMetrics" index.html
+          grep -Fq "ResizeObserver" index.html
+          grep -Fq "exportScale=W/TEXT_REFERENCE_WIDTH" index.html
+          grep -Fq "startY=centerY-((lines.length-1)*lineStep)/2" index.html
+          grep -Fq "wrapCanvasText" index.html
+          grep -Fq "document.fonts?.ready" index.html
+          grep -Fq "motionObjectsList" index.html
+          grep -Fq "Pinking Edge" index.html
+          grep -Fq "bgPreviewURL" index.html
+          grep -Fq "data-mobile-layout=\"v1.2.4\"" index.html
+          ! grep -Fq "mobile-layout-v1.2.2.css" index.html
+          ! grep -Fq "serviceWorker.register" index.html
       - name: JavaScript syntax check
         run: |
           python - <<'PY'
