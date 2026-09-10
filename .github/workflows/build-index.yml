@@ -1,4 +1,4 @@
-name: Patch ObjectReel v1.2.3
+name: Patch ObjectReel v1.2.4
 
 on:
   push:
@@ -15,53 +15,67 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inline mobile layout only
+      - name: Patch text preview/export parity only
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          css = Path('mobile-layout-v1.2.1.css').read_text(encoding='utf-8')
-          inline = '<style data-mobile-layout="v1.2.3">\n' + css + '\n</style>'
-
           for name in ('index.html','app-base.html'):
               p=Path(name)
               s=p.read_text(encoding='utf-8')
-              if 'v1.2.2' not in s or "VERSION='1.2.2'" not in s:
-                  raise SystemExit(f'v1.2.2 marker missing in {name}')
+              if 'v1.2.3' not in s or "VERSION='1.2.3'" not in s:
+                  raise SystemExit(f'v1.2.3 marker missing in {name}')
 
-              candidates = [
-                  '<link rel="stylesheet" href="./mobile-layout-v1.2.2.css?v=1.2.1">',
-                  '<link rel="stylesheet" href="./mobile-layout-v1.2.2.css?v=1.2.2">',
-                  '<link rel="stylesheet" href="./mobile-layout-v1.2.1.css?v=1.2.1">'
-              ]
-              replaced=False
-              for old_link in candidates:
-                  if old_link in s:
-                      s=s.replace(old_link,inline,1)
-                      replaced=True
-                      break
-              if not replaced:
-                  raise SystemExit(f'external mobile css marker missing in {name}')
+              s=s.replace('v1.2.3','v1.2.4')
+              s=s.replace("VERSION='1.2.3'","VERSION='1.2.4'")
 
-              s=s.replace('v1.2.2','v1.2.3')
-              s=s.replace("VERSION='1.2.2'","VERSION='1.2.3'")
+              old="""function renderTexts(){const c=$('textContainer');c.innerHTML='';const list=$('textsList');list.innerHTML='';state.texts.forEach(t=>{const el=document.createElement('div');el.className='text-item'+(t.id===state.selectedText?' selected':'');el.textContent=t.text||'';el.style.left=(t.x??50)+'%';el.style.top=(t.y??76)+'%';el.style.fontSize=(t.size||28)+'px';el.style.color=t.color||'#fff';el.style.fontFamily=t.font||'Pretendard, sans-serif';el.style.letterSpacing=(t.letterSpacing??0)+'px';el.style.lineHeight=t.lineHeight??1.18;c.appendChild(el);const chip=document.createElement('button');chip.type='button';chip.className='text-chip'+(t.id===state.selectedText?' selected':'');chip.textContent=(t.text||'텍스트').slice(0,18);chip.onclick=()=>{state.selectedText=t.id;renderTexts();syncText()};list.appendChild(chip)});syncText()}"""
+              new="""const TEXT_REFERENCE_WIDTH=320;function textPreviewScale(){return Math.max(.01,(stage.getBoundingClientRect().width||TEXT_REFERENCE_WIDTH)/TEXT_REFERENCE_WIDTH)}function applyTextMetrics(el,t){const k=textPreviewScale();el.style.fontSize=((t.size||28)*k)+'px';el.style.letterSpacing=((t.letterSpacing??0)*k)+'px';el.style.lineHeight=t.lineHeight??1.18}function refreshTextMetrics(){document.querySelectorAll('.text-item[data-text-id]').forEach(el=>{const t=state.texts.find(x=>x.id===el.dataset.textId);if(t)applyTextMetrics(el,t)})}function renderTexts(){const c=$('textContainer');c.innerHTML='';const list=$('textsList');list.innerHTML='';state.texts.forEach(t=>{const el=document.createElement('div');el.className='text-item'+(t.id===state.selectedText?' selected':'');el.dataset.textId=t.id;el.textContent=t.text||'';el.style.left=(t.x??50)+'%';el.style.top=(t.y??76)+'%';el.style.color=t.color||'#fff';el.style.fontFamily=t.font||'Pretendard, sans-serif';applyTextMetrics(el,t);c.appendChild(el);const chip=document.createElement('button');chip.type='button';chip.className='text-chip'+(t.id===state.selectedText?' selected':'');chip.textContent=(t.text||'텍스트').slice(0,18);chip.onclick=()=>{state.selectedText=t.id;renderTexts();syncText()};list.appendChild(chip)});syncText()}"""
+              if old not in s:
+                  raise SystemExit(f'renderTexts marker missing in {name}')
+              s=s.replace(old,new,1)
+
+              old="""function drawLetterSpaced(ctx,text,x,y,spacing){if(!spacing){ctx.fillText(text,x,y);return}const chars=[...text],widths=chars.map(ch=>ctx.measureText(ch).width),total=widths.reduce((a,b)=>a+b,0)+spacing*Math.max(0,chars.length-1);let cx=x-total/2;const align=ctx.textAlign;ctx.textAlign='left';chars.forEach((ch,i)=>{ctx.fillText(ch,cx,y);cx+=widths[i]+spacing});ctx.textAlign=align}"""
+              new="""function measureLetterSpaced(ctx,text,spacing){const chars=[...text],widths=chars.map(ch=>ctx.measureText(ch).width);return widths.reduce((a,b)=>a+b,0)+spacing*Math.max(0,chars.length-1)}function drawLetterSpaced(ctx,text,x,y,spacing){if(!spacing){ctx.fillText(text,x,y);return}const chars=[...text],widths=chars.map(ch=>ctx.measureText(ch).width),total=widths.reduce((a,b)=>a+b,0)+spacing*Math.max(0,chars.length-1);let cx=x-total/2;const align=ctx.textAlign;ctx.textAlign='left';chars.forEach((ch,i)=>{ctx.fillText(ch,cx,y);cx+=widths[i]+spacing});ctx.textAlign=align}function wrapCanvasText(ctx,text,maxWidth,spacing){const out=[];for(const para of String(text||'').split('\\n')){if(para===''){out.push('');continue}const tokens=para.split(/(\\s+)/).filter(Boolean);let line='';for(const token of tokens){const candidate=line+token;if(line.trim()&&token.trim()&&measureLetterSpaced(ctx,candidate,spacing)>maxWidth){out.push(line.trimEnd());line=token.trimStart()}else line=candidate}out.push(line.trimEnd())}return out}"""
+              if old not in s:
+                  raise SystemExit(f'drawLetterSpaced marker missing in {name}')
+              s=s.replace(old,new,1)
+
+              old="""const exportTextSize=(tl.size||28)*2.8;ctx.font=`700 ${exportTextSize}px ${tl.font||'Pretendard, sans-serif'}`;ctx.shadowColor='rgba(0,0,0,.22)';ctx.shadowBlur=14;const lines=(tl.text||'').split('\\n'),lineStep=exportTextSize*(tl.lineHeight??1.18),letterSpace=(tl.letterSpacing??0)*2.8;lines.forEach((line,j)=>drawLetterSpaced(ctx,line,(tl.x??50)/100*W,(tl.y??76)/100*H+j*lineStep,letterSpace));"""
+              new="""const exportScale=W/TEXT_REFERENCE_WIDTH,exportTextSize=(tl.size||28)*exportScale;ctx.font=`700 ${exportTextSize}px ${tl.font||'Pretendard, sans-serif'}`;ctx.shadowColor='rgba(0,0,0,.22)';ctx.shadowBlur=14;const letterSpace=(tl.letterSpacing??0)*exportScale,lines=wrapCanvasText(ctx,tl.text||'',W*.84,letterSpace),lineStep=exportTextSize*(tl.lineHeight??1.18),centerY=(tl.y??76)/100*H,startY=centerY-((lines.length-1)*lineStep)/2;lines.forEach((line,j)=>drawLetterSpaced(ctx,line,(tl.x??50)/100*W,startY+j*lineStep,letterSpace));"""
+              if old not in s:
+                  raise SystemExit(f'export text marker missing in {name}')
+              s=s.replace(old,new,1)
+
+              old="""async function exportVideo(){const status=$('exportStatus'),btn=$('exportBtn');btn.disabled=true;status.textContent='영상 준비 중…';try{"""
+              new="""async function exportVideo(){const status=$('exportStatus'),btn=$('exportBtn');btn.disabled=true;status.textContent='영상 준비 중…';try{if(document.fonts?.ready)await document.fonts.ready;"""
+              if old not in s:
+                  raise SystemExit(f'exportVideo marker missing in {name}')
+              s=s.replace(old,new,1)
+
+              old="""function compactPreview(){if(innerWidth<=820){if(scrollY>36)previewWasCompacted=true;document.body.classList.toggle('preview-compact',previewWasCompacted)}else{previewWasCompacted=false;document.body.classList.remove('preview-compact')}}addEventListener('scroll',compactPreview,{passive:true});addEventListener('resize',compactPreview);"""
+              new="""function compactPreview(){if(innerWidth<=820){if(scrollY>36)previewWasCompacted=true;document.body.classList.toggle('preview-compact',previewWasCompacted)}else{previewWasCompacted=false;document.body.classList.remove('preview-compact')}requestAnimationFrame(refreshTextMetrics)}addEventListener('scroll',compactPreview,{passive:true});addEventListener('resize',compactPreview);if('ResizeObserver'in window)new ResizeObserver(()=>refreshTextMetrics()).observe(stage);"""
+              if old not in s:
+                  raise SystemExit(f'compactPreview marker missing in {name}')
+              s=s.replace(old,new,1)
+
               p.write_text(s,encoding='utf-8')
           PY
-      - name: Static regression checks
+      - name: Regression checks
         run: |
-          grep -q "v1.2.3" index.html
-          grep -q "data-mobile-layout=\"v1.2.3\"" index.html
-          grep -q "body.preview-compact .stage-shell" index.html
+          grep -q "v1.2.4" index.html
+          grep -q "TEXT_REFERENCE_WIDTH=320" index.html
+          grep -q "applyTextMetrics" index.html
+          grep -q "ResizeObserver" index.html
+          grep -q "exportScale=W/TEXT_REFERENCE_WIDTH" index.html
+          grep -q "startY=centerY-((lines.length-1)*lineStep)/2" index.html
+          grep -q "wrapCanvasText" index.html
+          grep -q "document.fonts?.ready" index.html
           grep -q "motionObjectsList" index.html
           grep -q "Pinking Edge" index.html
-          grep -q "textLetterSpacing" index.html
-          grep -q "textLineHeight" index.html
           grep -q "bgPreviewURL" index.html
-          grep -q "URL.createObjectURL(f)" index.html
+          grep -q "data-mobile-layout=\"v1.2.4\"" index.html
           ! grep -q "mobile-layout-v1.2.2.css" index.html
-          ! grep -q "mobile-layout-v1.2.1.css?v=1.2.1" index.html
-          ! grep -q "document.write" index.html
-          ! grep -q "<iframe" index.html
           ! grep -q "serviceWorker.register" index.html
       - name: JavaScript syntax check
         run: |
@@ -73,10 +87,10 @@ jobs:
           Path('/tmp/objectreel.mjs').write_text('\n'.join(scripts),encoding='utf-8')
           PY
           node --check /tmp/objectreel.mjs
-      - name: Commit verified layout fix
+      - name: Commit verified text parity fix
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html app-base.html
-          git commit -m 'fix: inline mobile layout v1.2.3'
+          git commit -m 'fix: match preview and export text v1.2.4'
           git push
