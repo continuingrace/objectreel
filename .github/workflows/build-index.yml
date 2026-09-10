@@ -30,6 +30,7 @@ jobs:
                   raise SystemExit(f'v1.2.2 marker missing in {name}')
 
               candidates = [
+                  '<link rel="stylesheet" href="./mobile-layout-v1.2.2.css?v=1.2.1">',
                   '<link rel="stylesheet" href="./mobile-layout-v1.2.2.css?v=1.2.2">',
                   '<link rel="stylesheet" href="./mobile-layout-v1.2.1.css?v=1.2.1">'
               ]
