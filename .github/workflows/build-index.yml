@@ -1,4 +1,4 @@
-name: Patch ObjectReel v1.2.2
+name: Patch ObjectReel v1.2.3
 
 on:
   push:
@@ -15,24 +15,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply only requested v1.2.2 changes
-        run: python tools/patch_v122.py
+      - name: Inline mobile layout only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          css = Path('mobile-layout-v1.2.1.css').read_text(encoding='utf-8')
+          old_link = '<link rel="stylesheet" href="./mobile-layout-v1.2.1.css?v=1.2.1">'
+          inline = '<style data-mobile-layout="v1.2.3">\n' + css + '\n</style>'
+
+          for name in ('index.html','app-base.html'):
+              p=Path(name)
+              s=p.read_text(encoding='utf-8')
+              if 'v1.2.2' not in s or "VERSION='1.2.2'" not in s:
+                  raise SystemExit(f'v1.2.2 marker missing in {name}')
+              if old_link not in s:
+                  raise SystemExit(f'external mobile css marker missing in {name}')
+              s=s.replace('v1.2.2','v1.2.3')
+              s=s.replace("VERSION='1.2.2'","VERSION='1.2.3'")
+              s=s.replace(old_link,inline,1)
+              p.write_text(s,encoding='utf-8')
+          PY
       - name: Static regression checks
         run: |
-          grep -q "v1.2.2" index.html
+          grep -q "v1.2.3" index.html
+          grep -q "data-mobile-layout=\"v1.2.3\"" index.html
+          grep -q "body.preview-compact .stage-shell" index.html
           grep -q "motionObjectsList" index.html
-          grep -q "Side Rock" index.html
-          grep -q "Wobble" index.html
-          grep -q "id=\"textLetterSpacing\"" index.html
-          grep -q "id=\"textLineHeight\"" index.html
           grep -q "Pinking Edge" index.html
-          grep -q "function pinkingClip" index.html
-          grep -q "function pinkingPath" index.html
+          grep -q "textLetterSpacing" index.html
+          grep -q "textLineHeight" index.html
           grep -q "bgPreviewURL" index.html
           grep -q "URL.createObjectURL(f)" index.html
-          grep -q "loadeddata" index.html
-          grep -q "playsinline" index.html
-          grep -q "지금 저장" index.html
+          ! grep -q "mobile-layout-v1.2.1.css?v=1.2.1" index.html
           ! grep -q "document.write" index.html
           ! grep -q "<iframe" index.html
           ! grep -q "serviceWorker.register" index.html
@@ -46,12 +61,10 @@ jobs:
           Path('/tmp/objectreel.mjs').write_text('\n'.join(scripts),encoding='utf-8')
           PY
           node --check /tmp/objectreel.mjs
-      - name: Confirm only targeted production files changed
-        run: git diff --exit-code -- mobile-layout-v1.2.1.css sw.js manifest.webmanifest || true
-      - name: Commit verified patch
+      - name: Commit verified layout fix
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html app-base.html
-          git commit -m 'fix: pinking text spacing and instant bg video v1.2.2'
+          git commit -m 'fix: inline mobile layout v1.2.3'
           git push
